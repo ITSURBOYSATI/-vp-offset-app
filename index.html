@@ -411,6 +411,7 @@ function attemptAdminLogin(){
   const pin = document.getElementById('loginPin').value.trim();
   if(pin === String(DB.settings.adminPin||'1234')){
     session = {role:'admin'}; currentTab='dashboard';
+    try{ localStorage.setItem('vp_admin_session','1'); }catch(e){}
     document.getElementById('app').style.cssText='';
     render();
   } else {
@@ -441,6 +442,7 @@ async function attemptOperatorGoogleLogin(){
 }
 async function logout(){
   session=null; sidebarOpen=false;
+  try{ localStorage.removeItem('vp_admin_session'); }catch(e){}
   try{
     const u = firebase.auth().currentUser;
     if(u && !u.isAnonymous){ await firebase.auth().signOut(); await firebase.auth().signInAnonymously(); }
@@ -482,6 +484,7 @@ function render(){
         <div style="font-size:12.5px;color:var(--text-dim);text-align:right;">
           ${isAdmin?'Signed in as <b>Admin</b>':'Signed in as <b>'+escapeHtml(op?op.name:'Operator')+'</b>'}
         </div>
+        <button class="btn secondary small" style="margin-left:12px;flex-shrink:0;" onclick="logout()">Logout</button>
       </div>
       <div class="content" id="content"></div>
     </main>
@@ -1196,7 +1199,10 @@ function closeModal(){ document.getElementById('modalBackdrop')?.remove(); }
 ============================================================ */
 (async function init(){
   await loadDB();
-  if(pendingSession){ session = pendingSession; currentTab = 'op_attendance'; }
+  let adminRestored = false;
+  try{ adminRestored = localStorage.getItem('vp_admin_session')==='1'; }catch(e){}
+  if(adminRestored){ session = {role:'admin'}; currentTab = 'dashboard'; }
+  else if(pendingSession){ session = pendingSession; currentTab = 'op_attendance'; }
   render();
 })();
 </script>
