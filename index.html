@@ -78,7 +78,7 @@
   .badge.ok{background:#dcead2;color:#3d6b2e;}
   .badge.inactive{background:#e6e1d4;color:#5c5344;}
 
-  input,select,textarea{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-dark);border-radius:6px;background:#fff;color:var(--text);width:100%;}
+  input,select,textarea{font-family:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line-dark);border-radius:6px;background:#fff;color:var(--text);width:100%;}
   input:focus,select:focus,textarea:focus{outline:2px solid var(--cyan);outline-offset:1px;}
   input:disabled{background:var(--paper-dim);color:var(--text-dim);}
   label{font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px;}
@@ -165,7 +165,7 @@
     .kpi{padding:12px 13px;border-radius:8px;}
     .kpi .value{font-size:21px;}
     .row.c2,.row.c3,.row.c4,.row.c5{grid-template-columns:1fr;}
-    input,select,textarea{font-size:14px;min-height:42px;padding:9px 10px;}
+    input,select,textarea{font-size:16px;min-height:44px;padding:10px 10px;}
     table{min-width:640px;font-size:12px;}
     th{font-size:9.5px;padding:8px;} td{padding:8px;}
     .tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -14px 16px;padding:0 14px;}
@@ -181,6 +181,7 @@
 </style>
 </head>
 <body>
+<div id="bannerStack"></div>
 <div id="app"></div>
 <script>
 /* ============================================================
@@ -391,7 +392,7 @@ function renderLogin(){
         <div class="panel" style="margin:0;">
           <h3>🔑 Admin Login</h3>
           <p class="helptext">Full access — attendance, salary, price calculator, inventory, settings.</p>
-          <div class="field"><label>PIN</label><input id="loginPin" type="password" inputmode="numeric" placeholder="Enter admin PIN" onkeydown="if(event.key==='Enter')attemptAdminLogin();"></div>
+          <div class="field"><label>PIN</label><input id="loginPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter admin PIN" onkeydown="if(event.key==='Enter')attemptAdminLogin();"></div>
           <div id="loginError" style="color:var(--red);font-size:12.5px;margin-bottom:8px;"></div>
           <button class="btn" style="width:100%;justify-content:center;" onclick="attemptAdminLogin()">Login as Admin</button>
         </div>
@@ -456,14 +457,16 @@ async function logout(){
 function render(){
   if(!session) return renderLogin();
   const app = document.getElementById('app');
-  const dbBanner = !fbDb ? `<div style="position:fixed;top:0;left:0;right:0;background:#f3d9d4;color:#8c2f1f;padding:8px 16px;font-size:12.5px;text-align:center;z-index:200;">⚠ Not connected${window.__connectError?(' ('+window.__connectError+')'):''} — changes made now will be lost. Check your internet connection.</div>` : '';
+  const dbBanner = !fbDb ? `<div style="background:#f3d9d4;color:#8c2f1f;padding:8px 16px;font-size:12.5px;text-align:center;">⚠ Not connected${window.__connectError?(' ('+window.__connectError+')'):''} — changes made now will be lost. Check your internet connection.</div>` : '';
   const isAdmin = session.role==='admin';
+  const lowStockCount = isAdmin ? DB.inventory.filter(i=>stockRemaining(i.id) <= n(i.reorderLevel)).length : 0;
+  const stockBanner = (lowStockCount>0 && currentTab!=='inventory') ? `<div style="background:#fff3cd;color:#7a5b00;padding:8px 16px;font-size:12.5px;text-align:center;cursor:pointer;" onclick="goTo('inventory')">📦 ${lowStockCount} item(s) at or below reorder level — tap to view Inventory</div>` : '';
+  const stack = document.getElementById('bannerStack'); if(stack) stack.innerHTML = dbBanner + stockBanner;
   const op = isAdmin ? null : DB.employees.find(e=>e.id===session.operatorId);
   const navHtml = isAdmin
     ? navGroup('Tools',[['calculator','Price Calculator']]) + navGroup('Stock',[['inventory','Inventory']]) + navGroup('Overview',[['dashboard','Dashboard']]) + navGroup('Workforce',[['attendance','Attendance'],['salary','Salary']]) + navGroup('System',[['settings','Settings']])
     : navGroup('My Work',[['op_attendance','Punch In'],['op_joblog','Daily Job Log'],['op_chemical','Chemical Usage']]);
   app.innerHTML = `
-    ${dbBanner}
     <div class="sidebar ${sidebarOpen?'open':''}">
       <div class="brand">
         <h1>${escapeHtml(DB.settings.companyName)}</h1>
@@ -715,11 +718,11 @@ function openSalaryModal(employeeId,month){
   showModal(`<h3>Record Salary — ${escapeHtml(e.name)} · ${monthLabel(month)}</h3>
     <div class="helptext">Attendance: Present ${summary.present} · Half-day ${summary.half} · Absent ${summary.absent} · Leave ${summary.leave} · Paid days ${summary.effective}</div>
     <div class="row c3" style="margin-top:14px;">
-      <div class="field"><label>Gross Salary (auto, editable)</label><input id="sal_gross" type="number" value="${gross}" oninput="updateSalaryNet()"></div>
-      <div class="field"><label>Advance</label><input id="sal_advance" type="number" value="${existing?n(existing.advance):0}" oninput="updateSalaryNet()"></div>
-      <div class="field"><label>Deductions</label><input id="sal_deduction" type="number" value="${existing?n(existing.deduction):0}" oninput="updateSalaryNet()"></div>
+      <div class="field"><label>Gross Salary (auto, editable)</label><input id="sal_gross" type="number" inputmode="decimal" value="${gross}" oninput="updateSalaryNet()"></div>
+      <div class="field"><label>Advance</label><input id="sal_advance" type="number" inputmode="decimal" value="${existing?n(existing.advance):0}" oninput="updateSalaryNet()"></div>
+      <div class="field"><label>Deductions</label><input id="sal_deduction" type="number" inputmode="decimal" value="${existing?n(existing.deduction):0}" oninput="updateSalaryNet()"></div>
     </div>
-    <div class="field"><label>Net Pay</label><input id="sal_net" type="number" disabled></div>
+    <div class="field"><label>Net Pay</label><input id="sal_net" type="number" inputmode="decimal" disabled></div>
     <div class="row c2">
       <div class="field"><label>Status</label><select id="sal_status"><option ${(!existing||existing.status==='Pending')?'selected':''}>Pending</option><option ${existing&&existing.status==='Paid'?'selected':''}>Paid</option></select></div>
       <div class="field"><label>Payment Date</label><input id="sal_date" type="date" value="${existing?existing.paymentDate:todayISO()}"></div>
@@ -801,25 +804,43 @@ function renderCalcJobs(){
       <div class="row c3">
         <div class="field"><label>UV Coating Type</label><select onchange="updateCalcJob(${i},'coatingType',this.value)">${COATING_TYPES.map(t=>`<option ${j.coatingType===t?'selected':''}>${t}</option>`).join('')}</select></div>
         <div class="field"><label>Size (L × W in)</label><input value="${escapeHtml(j.size||'')}" placeholder="20x15" oninput="updateCalcJob(${i},'size',this.value)"></div>
-        <div class="field"><label>Quantity (sheets)</label><input type="number" min="0" value="${j.quantity||''}" oninput="updateCalcJob(${i},'quantity',this.value)"></div>
+        <div class="field"><label>Quantity (sheets)</label><input type="number" min="0" inputmode="numeric" value="${j.quantity||''}" oninput="updateCalcJob(${i},'quantity',this.value)"></div>
       </div>
       <div class="row c3">
-        <div class="field"><label>Rate (Paise / Sq Inch)</label><input type="number" min="0" step="0.01" value="${j.rate}" oninput="updateCalcJob(${i},'rate',this.value)"></div>
-        <div class="field"><label>Rate / Sheet · Auto</label><input readonly value="${fmtMoney(j.unitRate)}"></div>
-        <div class="field"><label>Amount · Auto</label><input readonly value="${fmtMoney(j.amount)}"></div>
+        <div class="field"><label>Rate (Paise / Sq Inch)</label><input id="calcRateInput_${i}" type="number" min="0" step="0.01" inputmode="decimal" value="${j.rate}" oninput="updateCalcJob(${i},'rate',this.value)"></div>
+        <div class="field"><label>Rate / Sheet · Auto</label><input id="calcRate_${i}" readonly value="${fmtMoney(j.unitRate)}"></div>
+        <div class="field"><label>Amount · Auto</label><input id="calcAmt_${i}" readonly value="${fmtMoney(j.amount)}"></div>
       </div>
-      <div class="helptext">${escapeHtml(j.description||'Enter size, quantity and rate to calculate.')}</div>
+      <div class="helptext" id="calcDesc_${i}">${escapeHtml(j.description||'Enter size, quantity and rate to calculate.')}</div>
     </div>`;
   }).join('');
   const t = window._calcJobs.reduce((s,j)=>s+n(j.amount),0);
   const d = document.getElementById('calcTotalDisplay'); if(d) d.textContent=fmtMoney(t);
 }
+// Updates just this one job's computed outputs + the running total, without
+// touching any <input> elements — rebuilding the list on every keystroke
+// (the old behavior) destroyed and recreated the input the person was
+// actively typing in, kicking their cursor/keyboard focus out after every
+// single character.
+function refreshCalcJobOutputs(i){
+  const j = window._calcJobs[i]; if(!j) return;
+  const rateEl=document.getElementById('calcRate_'+i), amtEl=document.getElementById('calcAmt_'+i), descEl=document.getElementById('calcDesc_'+i);
+  if(rateEl) rateEl.value = fmtMoney(j.unitRate);
+  if(amtEl) amtEl.value = fmtMoney(j.amount);
+  if(descEl) descEl.textContent = j.description || 'Enter size, quantity and rate to calculate.';
+  const t = window._calcJobs.reduce((s,x)=>s+n(x.amount),0);
+  const d = document.getElementById('calcTotalDisplay'); if(d) d.textContent = fmtMoney(t);
+}
 function updateCalcJob(i,f,v){
   const j=window._calcJobs[i]; if(!j) return;
-  if(f==='coatingType'){ j[f]=v; if(!j._rateTouched) j.rate=coatingRate(v)||j.rate; }
+  if(f==='coatingType'){
+    j[f]=v;
+    if(!j._rateTouched){ j.rate=coatingRate(v)||j.rate; const rateInput=document.getElementById('calcRateInput_'+i); if(rateInput) rateInput.value=j.rate; }
+  }
   else if(f==='rate'){ j.rate=n(v); j._rateTouched=true; }
   else j[f]=(f==='quantity')?n(v):v;
-  calculateCalcJob(j); renderCalcJobs();
+  calculateCalcJob(j);
+  refreshCalcJobOutputs(i); // surgical update — does NOT rebuild the inputs, so typing is never interrupted
 }
 function addCalcJob(){ window._calcJobs.push(newCalcJob()); renderCalcJobs(); }
 function removeCalcJob(i){ window._calcJobs.splice(i,1); renderCalcJobs(); }
@@ -897,7 +918,7 @@ function openInventoryModal(existing){
   const it = existing || {id:uid(),name:'',unit:'',openingStock:0,reorderLevel:0};
   showModal(`<h3>${existing?'Edit':'Add'} Inventory Item</h3>
     <div class="row c2"><div class="field"><label>Item Name</label><input id="inv_name" value="${escapeHtml(it.name)}"></div><div class="field"><label>Unit</label><input id="inv_unit" value="${escapeHtml(it.unit||'')}" placeholder="e.g. Litre, Kg, Sheets"></div></div>
-    <div class="row c2"><div class="field"><label>Opening Stock</label><input id="inv_opening" type="number" value="${it.openingStock||0}" ${existing?'disabled':''}></div><div class="field"><label>Reorder Level</label><input id="inv_reorder" type="number" value="${it.reorderLevel||0}"></div></div>
+    <div class="row c2"><div class="field"><label>Opening Stock</label><input id="inv_opening" type="number" inputmode="decimal" value="${it.openingStock||0}" ${existing?'disabled':''}></div><div class="field"><label>Reorder Level</label><input id="inv_reorder" type="number" inputmode="decimal" value="${it.reorderLevel||0}"></div></div>
     ${existing?'<div class="helptext">Opening stock is locked after creation — use Stock In/Out to adjust quantity.</div>':''}
     <div class="modal-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveInventory('${it.id}',${!existing})">Save Item</button></div>`);
 }
@@ -914,7 +935,7 @@ function openStockTxModal(){
   showModal(`<h3>Stock In / Out</h3>
     <div class="row c2"><div class="field"><label>Item</label><select id="stx_item">${DB.inventory.map(i=>`<option value="${i.id}">${escapeHtml(i.name)} (${stockRemaining(i.id)} ${escapeHtml(i.unit||'')})</option>`).join('')}</select></div>
     <div class="field"><label>Type</label><select id="stx_type"><option value="in">Stock In</option><option value="out">Stock Out</option></select></div></div>
-    <div class="row c2"><div class="field"><label>Quantity</label><input id="stx_qty" type="number" min="0"></div><div class="field"><label>Date</label><input id="stx_date" type="date" value="${todayISO()}"></div></div>
+    <div class="row c2"><div class="field"><label>Quantity</label><input id="stx_qty" type="number" inputmode="decimal" min="0"></div><div class="field"><label>Date</label><input id="stx_date" type="date" value="${todayISO()}"></div></div>
     <div class="field"><label>Notes</label><input id="stx_notes" placeholder="e.g. Purchase, job usage"></div>
     <div class="modal-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveStockTx()">Save</button></div>`);
 }
@@ -1010,7 +1031,7 @@ function renderOpJobLog(){
     <div class="field"><label>Job Name</label><input id="jl_name" placeholder="e.g. Catalogue Cover"></div>
     <div class="row c2">
       <div class="field"><label>Size (L × W in)</label><input id="jl_size" placeholder="20x15"></div>
-      <div class="field"><label>Quantity (sheets)</label><input id="jl_qty" type="number" min="0"></div>
+      <div class="field"><label>Quantity (sheets)</label><input id="jl_qty" type="number" inputmode="decimal" min="0"></div>
     </div>
     <div class="field"><label>Date</label><input id="jl_date" type="date" value="${todayISO()}"></div>
     <div style="text-align:right;"><button class="btn" onclick="opSubmitJobLog()">Submit for Review</button></div>
@@ -1053,7 +1074,7 @@ function renderOpChemical(){
     <p class="helptext">This records usage as stock-out and updates remaining quantity.</p>
     <div class="row c2">
       <div class="field"><label>Item</label><select id="cu_item">${items.map(i=>`<option value="${i.id}">${escapeHtml(i.name)} — ${stockRemaining(i.id)} ${escapeHtml(i.unit||'')} left</option>`).join('')}</select></div>
-      <div class="field"><label>Quantity Used</label><input id="cu_qty" type="number" min="0"></div>
+      <div class="field"><label>Quantity Used</label><input id="cu_qty" type="number" inputmode="decimal" min="0"></div>
     </div>
     <div class="row c2">
       <div class="field"><label>Date</label><input id="cu_date" type="date" value="${todayISO()}"></div>
@@ -1092,7 +1113,7 @@ function renderSettings(){
     <div class="row c2"><div class="field"><label>Company Name</label><input id="st_name" value="${escapeHtml(s.companyName)}"></div><div class="field"><label>Phone</label><input id="st_phone" value="${escapeHtml(s.phone||'')}"></div></div>
     <div class="field"><label>Address</label><input id="st_address" value="${escapeHtml(s.address||'')}"></div>
     <div class="row c2">
-      <div class="field"><label>Default Working Days / Month</label><input id="st_wd" type="number" value="${s.defaultWorkingDays||30}"></div>
+      <div class="field"><label>Default Working Days / Month</label><input id="st_wd" type="number" inputmode="decimal" value="${s.defaultWorkingDays||30}"></div>
       <div class="field"><label>Admin Login PIN</label><input id="st_pin" value="${escapeHtml(String(s.adminPin||'1234'))}"></div>
     </div>
     <div style="text-align:right;"><button class="btn" onclick="saveCompanySettings()">Save Company Details</button></div>
@@ -1105,7 +1126,7 @@ function renderSettings(){
   <div class="panel">
     <div class="panel-head"><h3>UV Coating Rates (default ₹ paise/sq inch)</h3><button class="btn secondary small" onclick="addCoatingType()">+ Add Type</button></div>
     <table><thead><tr><th>Coating Type</th><th class="num">Default Rate</th><th></th></tr></thead>
-    <tbody>${Object.keys(s.coatingRates).map(t=>`<tr><td><input value="${escapeHtml(t)}" disabled></td><td class="num"><input type="number" step="0.01" value="${s.coatingRates[t]}" onchange="updateCoatingRate('${t.replace(/'/g,"\\'")}',this.value)" style="max-width:120px;margin-left:auto;"></td><td><button class="btn danger small" onclick="removeCoatingType('${t.replace(/'/g,"\\'")}')">Remove</button></td></tr>`).join('')}</tbody></table>
+    <tbody>${Object.keys(s.coatingRates).map(t=>`<tr><td><input value="${escapeHtml(t)}" disabled></td><td class="num"><input type="number" inputmode="decimal" step="0.01" value="${s.coatingRates[t]}" onchange="updateCoatingRate('${t.replace(/'/g,"\\'")}',this.value)" style="max-width:120px;margin-left:auto;"></td><td><button class="btn danger small" onclick="removeCoatingType('${t.replace(/'/g,"\\'")}')">Remove</button></td></tr>`).join('')}</tbody></table>
   </div>
   <div class="panel">
     <div class="panel-head"><h3>Backup</h3></div>
@@ -1123,15 +1144,15 @@ async function saveCompanySettings(){
 function openEmployeeModal(existing){
   const e = existing || {id:uid(),name:'',role:'Operator',phone:'',salaryType:'Monthly',monthlySalary:0,dailyWage:0,workingDaysPerMonth:DB.settings.defaultWorkingDays||30,active:true};
   showModal(`<h3>${existing?'Edit':'Add'} Employee</h3>
-    <div class="row c2"><div class="field"><label>Name</label><input id="em_name" value="${escapeHtml(e.name)}"></div><div class="field"><label>Role</label><input id="em_role" value="${escapeHtml(e.role||'')}"></div></div>
-    <div class="row c2"><div class="field"><label>Phone</label><input id="em_phone" value="${escapeHtml(e.phone||'')}"></div><div class="field"><label>Salary Type</label><select id="em_type" onchange="toggleSalaryFields()"><option value="Monthly" ${e.salaryType==='Monthly'?'selected':''}>Monthly</option><option value="Daily" ${e.salaryType==='Daily'?'selected':''}>Daily wage</option></select></div></div>
-    <div class="field"><label>Google Email (for operator sign-in)</label><input id="em_gmail" type="email" placeholder="name@gmail.com" value="${escapeHtml(e.googleEmail||'')}"></div>
+    <div class="row c2"><div class="field"><label>Name</label><input id="em_name" autocapitalize="words" value="${escapeHtml(e.name)}"></div><div class="field"><label>Role</label><input id="em_role" autocapitalize="words" value="${escapeHtml(e.role||'')}"></div></div>
+    <div class="row c2"><div class="field"><label>Phone</label><input id="em_phone" type="tel" inputmode="tel" value="${escapeHtml(e.phone||'')}"></div><div class="field"><label>Salary Type</label><select id="em_type" onchange="toggleSalaryFields()"><option value="Monthly" ${e.salaryType==='Monthly'?'selected':''}>Monthly</option><option value="Daily" ${e.salaryType==='Daily'?'selected':''}>Daily wage</option></select></div></div>
+    <div class="field"><label>Google Email (for operator sign-in)</label><input id="em_gmail" type="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="name@gmail.com" value="${escapeHtml(e.googleEmail||'')}"></div>
     <p class="helptext" style="margin-top:-6px;">The employee will sign in with this exact Google account to punch in/out — this stops anyone punching in on someone else's behalf.</p>
     <div class="row c2">
-      <div class="field" id="em_monthlyWrap"><label>Monthly Salary</label><input id="em_monthly" type="number" value="${e.monthlySalary||0}"></div>
-      <div class="field" id="em_dailyWrap"><label>Daily Wage</label><input id="em_daily" type="number" value="${e.dailyWage||0}"></div>
+      <div class="field" id="em_monthlyWrap"><label>Monthly Salary</label><input id="em_monthly" type="number" inputmode="decimal" value="${e.monthlySalary||0}"></div>
+      <div class="field" id="em_dailyWrap"><label>Daily Wage</label><input id="em_daily" type="number" inputmode="decimal" value="${e.dailyWage||0}"></div>
     </div>
-    <div class="field" id="em_wdWrap"><label>Working Days / Month (for monthly salary calc)</label><input id="em_wd" type="number" value="${e.workingDaysPerMonth||DB.settings.defaultWorkingDays||30}" style="max-width:160px;"></div>
+    <div class="field" id="em_wdWrap"><label>Working Days / Month (for monthly salary calc)</label><input id="em_wd" type="number" inputmode="decimal" value="${e.workingDaysPerMonth||DB.settings.defaultWorkingDays||30}" style="max-width:160px;"></div>
     <div class="field"><label>Status</label><select id="em_active"><option value="true" ${e.active!==false?'selected':''}>Active</option><option value="false" ${e.active===false?'selected':''}>Inactive</option></select></div>
     <div class="modal-actions"><button class="btn secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveEmployee('${e.id}',${!existing})">Save Employee</button></div>`);
   toggleSalaryFields();
