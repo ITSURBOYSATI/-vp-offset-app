@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -263,6 +263,7 @@ function normalizeSettings(){
 
 async function loadDB(){
   fbDb = null;
+  let connectError = '';
   try{
     if(firebaseConfig.apiKey==='YOUR_API_KEY') throw new Error('Firebase config not filled in yet');
     if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -271,8 +272,10 @@ async function loadDB(){
     fbDb = firebase.firestore();
   }catch(e){
     console.error('Firebase init failed', e);
+    connectError = (e && (e.code||e.message)) || 'unknown error';
     fbDb = null;
   }
+  window.__connectError = connectError;
 
   if(!fbDb){
     // Not connected (bad/missing config, or offline). App still works,
@@ -307,10 +310,10 @@ async function save(key){
     await fbDb.collection('store').doc(key).set(body);
   }catch(e){
     console.error('save failed',key,e);
-    toast('Save failed — storage error');
+    toast('Save failed: '+(e && (e.code||e.message) || 'unknown error'), 7000);
   }
 }
-function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2400); }
+function toast(msg,duration){ const t=document.createElement('div'); t.className='toast'; t.style.maxWidth='90vw'; t.style.wordBreak='break-word'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),duration||2400); }
 
 /* ============================================================
    ATTENDANCE HELPERS
@@ -434,7 +437,7 @@ async function logout(){
 function render(){
   if(!session) return renderLogin();
   const app = document.getElementById('app');
-  const dbBanner = !fbDb ? `<div style="position:fixed;top:0;left:0;right:0;background:#f3d9d4;color:#8c2f1f;padding:8px 16px;font-size:12.5px;text-align:center;z-index:200;">⚠ Not connected — changes made now will be lost. Check your internet connection.</div>` : '';
+  const dbBanner = !fbDb ? `<div style="position:fixed;top:0;left:0;right:0;background:#f3d9d4;color:#8c2f1f;padding:8px 16px;font-size:12.5px;text-align:center;z-index:200;">⚠ Not connected${window.__connectError?(' ('+window.__connectError+')'):''} — changes made now will be lost. Check your internet connection.</div>` : '';
   const isAdmin = session.role==='admin';
   const op = isAdmin ? null : DB.employees.find(e=>e.id===session.operatorId);
   const navHtml = isAdmin
